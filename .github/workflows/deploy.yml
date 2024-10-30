@@ -15,7 +15,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     
     - name: Install dependencies
       run: |
@@ -42,8 +42,8 @@ jobs:
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        application_name: recommendation-system
-        environment_name: recommendation-system-env
+        application_name: cicd
+        environment_name: cicd-env
         version_label: ${{ github.sha }}
         region: us-west-2
         deployment_package: deploy.zip
