@@ -1,0 +1,63 @@
+name: Test and Deploy to AWS Elastic Beanstalk
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Twingate
+      run: |
+        echo "deb [trusted=yes] https://packages.twingate.com/apt/ /" | sudo tee /etc/apt/sources.list.d/twingate.list
+        sudo apt update -yq
+        sudo apt install -yq twingate
+
+    - name: Setup and start Twingate
+      env:
+        TWINGATE_SERVICE_KEY: ${{ secrets.TWINGATE_SERVICE_KEY }}
+      run: |
+        echo $TWINGATE_SERVICE_KEY | sudo twingate setup --headless=-
+        sudo twingate start
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        python -m pytest tests/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Generate deployment package
+      run: zip -r deploy.zip . -x "*.git*" "*__pycache__*" "*.pytest_cache*" "*.venv*"
+    
+    - name: Deploy to EB
+      uses: einaregilsson/beanstalk-deploy@v21
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        application_name: cicd
+        environment_name: cicd-env-1
+        version_label: ${{ github.sha }}
+        region: us-west-2
+        deployment_package: deploy.zip
+        wait_for_deployment: true
